@@ -1,0 +1,246 @@
+---
+layout: ../../layouts/Main.astro
+title: Lab 01 - Word Vectors
+---
+
+import Latex from "@/components/astro/Latex.astro";
+
+En este laboratorio van a implementar algunos algoritmos de word vectors y dependency parsing. Estos algoritmos son fundamentales para entender cómo funcionan los modelos de lenguaje y cómo se pueden utilizar para resolver tareas de procesamiento de lenguaje natural.
+
+## Preparación
+
+Por favor lean las siguientes instrucciones cuidadosamente antes de seguir con el laboratorio.
+
+Visiten este [link](https://classroom.github.com/a/J06ppyJU). Aquí encontrarán todos los archivos necesarios para completar este laboratorio.
+
+En esta página, encontrarán un botón que dice "**_Accept this assignment_**":
+
+![Accept this assignment](/projs/01/github-01.png)
+
+Al presionar este botón, se empezará a crear automáticamente un repositorio en Github
+
+![Repo created](/projs/01/github-02.png)
+
+Vean que el repositorio ya ha sido creado y tiene la siguiente forma:
+
+```bash
+https://www.github.com/ug-ai-nlp/2025-lab-01-wordvec-<USUARIO>
+```
+
+Noten que el "dueño" de este repositorio es un usuario llamado `ug-ai-nlp`, y el usuario de ustedes es únicamente el sufijo del nombre del repositorio. De esta forma, nos encargamos de tener acceso siempre a su código.
+
+Abran una terminal en el directorio que prefieran, y ejecuten el siguiente comando:
+
+```bash
+git clone https://www.github.com/ug-ai-nlp/2025-lab-01-wordvec-<USUARIO>
+```
+
+> Recuerden reemplazar `<USUARIO>` con el nombre de usuario que les aparece en el link de GitHub.
+
+Esto descargará en el directorio que escogieron todos los archivos base para este laboratorio.
+
+### Tutorial de Git y GitHub
+
+Si no están familiarizados con Git y GitHub, por favor visiten el siguiente [link](/tutorial/git-github) para aprender los comandos básicos de Git y cómo subir su código a GitHub.
+
+### Instalación y Tutorial de Python
+
+Por favor para tener completo el material para el proyecto por favor visitar el link de [instalación de material](/tutorial/material).
+
+## Word Vectors (Vectores de Palabras)
+
+Los vectores de palabras se utilizan a menudo como un componente fundamental para tareas de NLP (Procesamiento del Lenguaje Natural) posteriores, por ejemplo, respuesta a preguntas, generación de texto, traducción, etc., por lo que es importante desarrollar una cierta intuición sobre sus fortalezas y debilidades. Aquí, explorarán dos tipos de vectores de palabras: los derivados de matrices de coocurrencia y los derivados mediante Word2Vec.
+
+Nota sobre la terminología: Los términos "word vectors" y "word embeddings" suelen usarse de forma intercambiable. El término embedding se refiere al hecho de que estamos codificando aspectos del significado de una palabra en un espacio de menor dimensión. Como afirma Wikipedia, "conceptualmente implica una incrustación matemática desde un espacio con una dimensión por palabra hacia un espacio vectorial continuo con una dimensión mucho menor".
+
+## Parte 1: Word Vectors basados en conteo
+
+La mayoría de los modelos de vectores de palabras parten de la siguiente idea:
+
+> Conocerás una palabra por la compañía que mantiene
+> (Firth, J. R. 1957:11)
+
+Muchas implementaciones de vectores de palabras se basan en la idea de que las palabras similares, es decir, los (casi) sinónimos, se usan en contextos similares. Como resultado, las palabras similares a menudo se dicen o escriben junto con un subconjunto compartido de palabras, es decir, contextos.
+
+Al examinar estos contextos, podemos intentar desarrollar embeddings para nuestras palabras. Con esta intuición en mente, muchos enfoques “clásicos” para construir vectores de palabras se basaban en conteos de palabras. Aquí profundizamos en una de esas estrategias: las matrices de coocurrencia (para más información, consulta [aquí](https://web.stanford.edu/~jurafsky/slp3/6.pdf) o [aquí](https://web.archive.org/web/20190530091127/https://medium.com/data-science-group-iitr/word-embedding-2d05d270b285)).
+
+### Coocurrencia
+
+Una matriz de coocurrencia cuenta cuán a menudo ocurren juntas ciertas cosas en un determinado entorno. Dada una palabra <Latex formula="w_i"/> que aparece en un documento, consideramos la ventana de contexto que rodea a <Latex formula="w_i"/>. Suponiendo que el tamaño fijo de la ventana es <Latex formula="n"/>, entonces se trata de las <Latex formula="n"/> palabras anteriores y las <Latex formula="n"/> posteriores en ese documento, es decir, las palabras <Latex formula="w_{i-n} \dots w_{i-1}"/> y <Latex formula="w_{i+1} \dots w_{i+n}"/>.
+
+Construimos una matriz de coocurrencia <Latex formula="M"/>, que es una matriz simétrica de palabras por palabras, en la que <Latex formula="M_{ij}"/> representa el número de veces que <Latex formula="w_{j}"/> aparece dentro de la ventana de <Latex formula="w_{i}"/> en todos los documentos.
+
+Ejemplo: Coocurrencia con ventana fija de n=1:
+
+Documento 1: "all that glitters is not gold"
+
+Documento 2: "all is well that ends well"
+
+| \*        | `<START>` | all | that | glitters | is  | not | gold | well | ends | `<END>` |
+| --------- | --------- | --- | ---- | -------- | --- | --- | ---- | ---- | ---- | ------- |
+| `<START>` | 0         | 2   | 0    | 0        | 0   | 0   | 0    | 0    | 0    | 0       |
+| all       | 2         | 0   | 1    | 0        | 1   | 0   | 0    | 0    | 0    | 0       |
+| that      | 0         | 1   | 0    | 1        | 0   | 0   | 0    | 1    | 1    | 0       |
+| glitters  | 0         | 0   | 1    | 0        | 1   | 0   | 0    | 0    | 0    | 0       |
+| is        | 0         | 1   | 0    | 1        | 0   | 1   | 0    | 1    | 0    | 0       |
+| not       | 0         | 0   | 0    | 0        | 1   | 0   | 1    | 0    | 0    | 0       |
+| gold      | 0         | 0   | 0    | 0        | 0   | 1   | 0    | 0    | 0    | 1       |
+| well      | 0         | 0   | 1    | 0        | 1   | 0   | 0    | 0    | 1    | 1       |
+| ends      | 0         | 0   | 1    | 0        | 0   | 0   | 0    | 1    | 0    | 0       |
+| `<END>`   | 0         | 0   | 0    | 0        | 0   | 0   | 1    | 1    | 0    | 0       |
+
+En NLP, es común utilizar los tokens `<START>` y `<END>` para marcar el inicio y el final de oraciones, párrafos o documentos. Estos tokens se incluyen en los conteos de coocurrencia, encapsulando cada documento. Por ejemplo: `<START>` all that glitters is not gold `<END>`.
+
+Las filas (o columnas) de la matriz proporcionan vectores de palabras basados en la coocurrencia palabra-palabra, pero estas matrices pued en ser muy grandes. Para reducir la dimensionalidad, empleamos Descomposición en Valores Singulares (SVD, por sus siglas en inglés), similar al Análisis de Componentes Principales (PCA), seleccionando los primeros <Latex formula="k"/> componentes principales. El proceso SVD descompone la matriz de coocurrencia <Latex formula="A"/> en valores singulares en la matriz diagonal <Latex formula="S"/> y nuevos vectores de palabras más cortos en <Latex formula="U_k"/>.
+
+Esta reducción de dimensionalidad mantiene relaciones semánticas; por ejemplo, doctor y hospital estarán más cercanos entre sí que doctor y perro.
+
+### Dataset
+
+Para los siguientes ejercicios utilizaremos el Large Movie Review Dataset. Este es un conjunto de datos para clasificación binaria de sentimientos que contiene sustancialmente más información que los conjuntos de datos de referencia anteriores. Proporcionamos un conjunto de 25,000 reseñas de películas para entrenamiento y otras 25,000 para prueba. También hay datos adicionales no etiquetados disponibles para su uso. A continuación, proporcionamos una función llamada `read_corpus` dentro de `utils.py` que extrae el texto de una reseña de película del conjunto de datos. La función también añade los tokens `<START>` y `<END>` a cada uno de los documentos, y convierte las palabras a minúsculas.
+
+Si desean probar lo que hace esta función, pueden ejecutar el siguiente código:
+
+```python
+from utils import read_corpus
+corpus = read_corpus()
+print(corpus[:3])
+print("Tamaño del corpus:", len(corpus[0]))
+```
+
+### Ejercicio 1: Implementar `distinct_words`
+
+```python
+def distinct_words(corpus):
+    """ Determine a list of distinct words for the corpus.
+        Params:
+            corpus (list of list of strings): corpus of documents
+        Return:
+            corpus_words (list of strings): sorted list of distinct words across the corpus
+            n_corpus_words (integer): number of distinct words across the corpus
+    """
+    corpus_words = []
+    n_corpus_words = -1
+
+    # ------------------
+    # TODO: Implementar este método
+    # ------------------
+
+    return corpus_words, n_corpus_words
+```
+
+Su tarea es escribir un método para obtener las palabras distintas (tipos de palabras) que aparecen en el corpus.
+
+Puedes usar ciclos `for` para procesar la entrada `corpus` (una lista de listas de strings), pero intenten utilizar _list comprehensions_ de Python (que generalmente son más rápidas). En particular, [este recurso](https://coderwall.com/p/rcmaea/flatten-a-list-of-lists-in-one-line-in-python) puede ser útil para aplanar una lista de listas. Si no están familiarizados con las list comprehensions en general, aquí tienen [más información](https://python-3-patterns-idioms-test.readthedocs.io/en/latest/Comprehensions.html).
+
+La variable `corpus_words` que devuelvan debe estar ordenada. Pueden usar la función `sorted` de Python para ello.
+
+También puede resultarles útil utilizar conjuntos (`sets`) de Python para eliminar palabras duplicadas.
+
+### Ejercicio 2: Implementar `compute_cooccurrence_matrix`
+
+```python
+def compute_co_occurrence_matrix(corpus, window_size=4):
+    """ Compute co-occurrence matrix for the given corpus and window_size (default of 4).
+
+        Note: Each word in a document should be at the center of a window. Words near edges will have a smaller
+              number of co-occurring words.
+
+              For example, if we take the document "<START> All that glitters is not gold <END>" with window size of 4,
+              "All" will co-occur with "<START>", "that", "glitters", "is", and "not".
+
+        Params:
+            corpus (list of list of strings): corpus of documents
+            window_size (int): size of context window
+        Return:
+            M (a symmetric numpy matrix of shape (number of unique words in the corpus , number of unique words in the corpus)):
+                Co-occurence matrix of word counts.
+                The ordering of the words in the rows/columns should be the same as the ordering of the words given by the distinct_words function.
+            word2ind (dict): dictionary that maps word to index (i.e. row/column number) for matrix M.
+    """
+    words, n_words = distinct_words(corpus)
+    M = [[0] * n_words for i in range(n_words)]
+    word2ind = {w:i for i, w in enumerate(words)}
+
+    # ------------------
+    # TODO: Implementar este método
+    # ------------------
+
+    return M, word2ind
+```
+
+Escriban un método que construya una matriz de coocurrencia para un tamaño de ventana <Latex formula="n" /> (con un valor predeterminado de 4), considerando las <Latex formula="n" /> palabras antes y las <Latex formula="n" /> palabras después de la palabra en el centro de la ventana.
+
+Aquí comenzamos a utilizar numpy (`np`) para representar vectores, matrices y tensores. Si no están familiarizados con NumPy, pueden consultar el tutorial de NumPy en la segunda mitad de este tutorial de [Python y NumPy de cs231n](http://cs231n.github.io/python-numpy-tutorial/).
+
+### Ejercicio 3: Implementar `reduce_to_k_dim`
+
+```python
+def reduce_to_k_dim(M, k=2):
+    """ Reduce a co-occurence count matrix of dimensionality (num_corpus_words, num_corpus_words)
+        to a matrix of dimensionality (num_corpus_words, k) using the following SVD function from Scikit-Learn:
+            - http://scikit-learn.org/stable/modules/generated/sklearn.decomposition.TruncatedSVD.html
+
+        Params:
+            M (numpy matrix of shape (number of unique words in the corpus , number of unique words in the corpus)): co-occurence matrix of word counts
+            k (int): embedding size of each word after dimension reduction
+        Return:
+            M_reduced (numpy matrix of shape (number of corpus words, k)): matrix of k-dimensioal word embeddings.
+                    In terms of the SVD from math class, this actually returns U * S
+    """
+    n_iters = 10    # Use this parameter in your call to `TruncatedSVD`
+    M_reduced = None
+    print("Running Truncated SVD over %i words..." % (M.shape[0]))
+
+    # ------------------
+    # TODO: Implementar este método
+    # ------------------
+
+    print("Done.")
+    return M_reduced
+```
+
+Construyan un método que realice reducción de dimensionalidad sobre la matriz para producir embeddings de dimensión <Latex formula="k"/>. Utiliza `SVD` para tomar los <Latex formula="k"/> componentes principales y generar una nueva matriz con embeddings de <Latex formula="k"/> dimensiones.
+
+> **Nota**: Las librerías `numpy`, `scipy` y `scikit-learn` (`sklearn`) ofrecen alguna implementación de SVD, pero solo `scipy` y `sklearn` proporcionan una implementación de `TruncatedSVD`, y únicamente `sklearn` ofrece un algoritmo aleatorio eficiente para calcular `TruncatedSVD`. Por lo tanto, por favor utilicen `sklearn.decomposition.TruncatedSVD`.
+
+### Ejercicio 4: Plotear los embeddings
+
+```python
+def plot_embeddings(M_reduced, word2ind, words):
+    """ Plot in a scatterplot the embeddings of the words specified in the list "words".
+        NOTE: do not plot all the words listed in M_reduced / word2ind.
+        Include a label next to each point.
+
+        Params:
+            M_reduced (numpy matrix of shape (number of unique words in the corpus , 2)): matrix of 2-dimensioal word embeddings
+            word2ind (dict): dictionary that maps word to indices for matrix M
+            words (list of strings): words whose embeddings we want to visualize
+    """
+
+    # ------------------
+    # TODO: Implementar este método
+    # ------------------
+```
+
+Aquí escribirán una función para graficar un conjunto de vectores 2D en un espacio bidimensional. Para las gráficas, utilizaremos Matplotlib (`plt`).
+
+Para este ejemplo, puede resultarles útil adaptar [este código](http://web.archive.org/web/20190924160434/https://www.pythonmembers.club/2018/05/08/matplotlib-scatter-plot-annotate-set-text-at-label-each-point/). En el futuro, una buena manera de crear una gráfica es visitar la [galería de Matplotlib](https://matplotlib.org/gallery/index.html), encontrar una gráfica que se parezca a lo que desean, y adaptar el código que proporcionan.
+
+Si todo sale bien pueden correr la parte 1 por completo ejecutando el siguiente comando:
+
+```bash
+python part1.py
+```
+
+Deberia mostrar una gráfica como la siguiente:
+
+![Word Vectors Example](/labs/01/part1_ex4.png)
+
+### Parte 2: Word2Vec
+
+## Entrega
+
+Por favor subir el link de su repositorio al **GES**. Siempre es necesario que suban su repositorio al GES, incluso si no completaron todos los ejercicios, de lo contrario la nota será de 0 puntos automáticamente.
+
+Tienen más de una semana para completar el proyecto, es decir, el link para subir al GES estará habilitado hasta el **28 de Febrero del 2025 a las 11:55 PM**.
