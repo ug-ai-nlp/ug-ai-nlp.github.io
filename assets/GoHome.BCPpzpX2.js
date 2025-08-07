@@ -1,0 +1,1 @@
+import{j as n}from"./jsx-runtime.CLXZXzaL.js";import{r as t}from"./index.BLroMeNT.js";function s(){return t.useEffect(()=>{function e(o){o.key==="/"&&(window.location.href="/")}return window.addEventListener("keydown",e),()=>{window.removeEventListener("keydown",e)}},[]),n.jsx(n.Fragment,{})}export{s as default};

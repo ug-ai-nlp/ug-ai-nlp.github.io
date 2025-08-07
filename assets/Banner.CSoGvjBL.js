@@ -1,0 +1,6 @@
+import{j as e}from"./jsx-runtime.CLXZXzaL.js";import{r as n}from"./index.BLroMeNT.js";import{c}from"./cn.BEHD0UYf.js";import{c as a}from"./createLucideIcon.CZf3ourf.js";/**
+ * @license lucide-react v0.473.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const i=[["path",{d:"m9 18 6-6-6-6",key:"mthhwq"}]],l=a("ChevronRight",i);function f({title:r}){const[o,t]=n.useState(!1);function s(){window.scrollY>176?t(!0):t(!1)}return n.useEffect(()=>(s(),window.addEventListener("scroll",s,{passive:!0}),()=>window.removeEventListener("scroll",s)),[]),e.jsx("div",{className:c("bg-background animate-in fade-in-0 sticky top-16 z-10 ml-16 hidden h-16 w-[calc(100%-6rem)] duration-500",o&&"lg:block"),children:e.jsxs("ul",{className:"flex h-full items-center space-x-2 text-sm",children:[e.jsxs("li",{className:"flex items-center space-x-2",children:[e.jsx("a",{href:"/docs",className:"text-muted-foreground inline whitespace-nowrap",children:"Documentación"}),e.jsx(l,{className:"text-muted-foreground h-4 w-4"})]}),e.jsx("li",{className:"text-muted-foreground line-clamp-1 hidden lg:block",children:r})]})})}export{f as default};
